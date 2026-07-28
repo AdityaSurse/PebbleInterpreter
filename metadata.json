@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Pebble Interpreter",
+  "description": "An interactive playground for the custom Pebble programming language.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
