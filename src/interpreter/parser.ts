@@ -13,6 +13,7 @@ import {
   IfStatement,
   WhileStatement,
   PrintStatement,
+  InputExpression,
 } from './types';
 
 enum Precedence {
@@ -265,9 +266,27 @@ export class Parser {
         return { type: 'IdentifierExpression', value: this.currentToken.literal, line: this.currentToken.line };
       case TokenType.NUMBER:
         return { type: 'LiteralExpression', value: parseFloat(this.currentToken.literal), line: this.currentToken.line };
+      case TokenType.STRING:
+        return { type: 'LiteralExpression', value: this.currentToken.literal, line: this.currentToken.line };
       case TokenType.TRUE:
       case TokenType.FALSE:
         return { type: 'LiteralExpression', value: this.currentToken.type === TokenType.TRUE, line: this.currentToken.line };
+      case TokenType.INPUT:
+        const inputLine = this.currentToken.line;
+        let prompt: Expression | undefined;
+        if (this.peekToken.type === TokenType.LPAREN) {
+          this.nextToken(); // consume 'input'
+          this.nextToken(); // consume '('
+          if ((this.currentToken.type as TokenType) !== TokenType.RPAREN) {
+            prompt = this.parseExpression(Precedence.LOWEST);
+            if (!this.expectPeek(TokenType.RPAREN)) {
+              throw new Error(`Line ${inputLine}: Expected ')' after input prompt`);
+            }
+          } else {
+             // empty parens
+          }
+        }
+        return { type: 'InputExpression', prompt, line: inputLine };
       case TokenType.BANG:
       case TokenType.MINUS:
         const line = this.currentToken.line;

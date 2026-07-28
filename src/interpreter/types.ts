@@ -30,6 +30,8 @@ export enum TokenType {
   SEMICOLON = 'SEMICOLON',
   EOF = 'EOF',
   ILLEGAL = 'ILLEGAL',
+  STRING = 'STRING',
+  INPUT = 'INPUT',
 }
 
 export interface Token {
@@ -118,7 +120,13 @@ export interface UnaryExpression {
 
 export interface LiteralExpression {
   type: 'LiteralExpression';
-  value: number | boolean;
+  value: number | boolean | string;
+  line: number;
+}
+
+export interface InputExpression {
+  type: 'InputExpression';
+  prompt?: Expression;
   line: number;
 }
 
@@ -132,4 +140,5 @@ export type Expression =
   | BinaryExpression
   | UnaryExpression
   | LiteralExpression
-  | IdentifierExpression;
+  | IdentifierExpression
+  | InputExpression;

@@ -120,6 +120,7 @@ export default function App() {
                   <div>
                     <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Variables</p>
                     <code className="block text-stone-500 dark:text-zinc-400">let x = 5;</code>
+                    <code className="block text-stone-500 dark:text-zinc-400">let s = "hi";</code>
                   </div>
                   <div>
                     <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Loops</p>
@@ -131,7 +132,8 @@ export default function App() {
                   </div>
                   <div>
                     <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">I/O</p>
-                    <code className="block text-stone-500 dark:text-zinc-400">print(123);</code>
+                    <code className="block text-stone-500 dark:text-zinc-400">print(x);</code>
+                    <code className="block text-stone-500 dark:text-zinc-400">let v = input();</code>
                   </div>
                 </div>
               )}

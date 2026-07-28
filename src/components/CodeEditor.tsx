@@ -30,18 +30,20 @@ export default function CodeEditor({ code, onChange }: { code: string; onChange:
   };
 
   const highlight = (text: string) => {
-    const keywords = ['let', 'if', 'else', 'while', 'print', 'true', 'false'];
+    const keywords = ['let', 'if', 'else', 'while', 'print', 'true', 'false', 'input'];
     const operators = ['+', '-', '*', '/', '%', '==', '!=', '<', '>', '<=', '>=', '&&', '||', '!', '='];
     
-    const tokenRegex = /([a-zA-Z_]\w*|\d+(?:\.\d+)?|\/\/.*|[\+\-\*\/\%=\!\<\>\&\|]+|[\(\)\{\}\;]|\s+)/g;
+    // Improved regex to capture strings as well (both single and double quotes)
+    const tokenRegex = /("[^"]*"|'[^']*'|[a-zA-Z_]\w*|\d+(?:\.\d+)?|\/\/.*|[\+\-\*\/\%=\!\<\>\&\|]+|[\(\)\{\}\;]|\s+)/g;
     
     return text.split(tokenRegex).map((token, i) => {
       if (!token) return null;
+      if (token.startsWith('"') || token.startsWith("'")) return <span key={i} className="text-yellow-600 dark:text-yellow-400">{token}</span>;
       if (keywords.includes(token)) return <span key={i} className="text-emerald-700 dark:text-emerald-500 font-bold">{token}</span>;
       if (token.startsWith('//')) return <span key={i} className="text-stone-400 dark:text-zinc-500 italic">{token}</span>;
       if (/^\d/.test(token)) return <span key={i} className="text-amber-700 dark:text-amber-500">{token}</span>;
       if (operators.includes(token)) return <span key={i} className="text-stone-600 dark:text-zinc-400">{token}</span>;
-      if (token === 'print') return <span key={i} className="text-emerald-700 dark:text-emerald-500 italic">{token}</span>;
+      if (token === 'print' || token === 'input') return <span key={i} className="text-emerald-700 dark:text-emerald-500 italic">{token}</span>;
       return <span key={i} className="dark:text-zinc-200">{token}</span>;
     });
   };

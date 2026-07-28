@@ -8,6 +8,7 @@ const KEYWORDS: Record<string, TokenType> = {
   print: TokenType.PRINT,
   true: TokenType.TRUE,
   false: TokenType.FALSE,
+  input: TokenType.INPUT,
 };
 
 export class Lexer {
@@ -133,6 +134,11 @@ export class Lexer {
       case '}':
         tok = { type: TokenType.RBRACE, literal: this.ch, line: this.line };
         break;
+      case '"':
+      case "'":
+        const str = this.readString(this.ch);
+        tok = { type: TokenType.STRING, literal: str, line: this.line };
+        break;
       default:
         if (this.isLetter(this.ch)) {
           const literal = this.readIdentifier();
@@ -164,6 +170,17 @@ export class Lexer {
     while (this.ch !== null && (this.isDigit(this.ch) || (this.ch === '.' && !hasDot))) {
       if (this.ch === '.') hasDot = true;
       this.readChar();
+    }
+    return this.input.substring(position, this.position);
+  }
+
+  private readString(quote: string): string {
+    const position = this.position + 1;
+    while (true) {
+      this.readChar();
+      if (this.ch === quote || this.ch === null) {
+        break;
+      }
     }
     return this.input.substring(position, this.position);
   }

@@ -160,6 +160,16 @@ export class Interpreter {
         } catch (e: any) {
            throw new Error(`Line ${node.line}: ${e.message}`);
         }
+      case 'InputExpression':
+        let promptStr = '';
+        if (node.prompt) {
+          promptStr = String(this.evaluate(node.prompt, env));
+        }
+        const userInput = window.prompt(promptStr);
+        // Handle null if user cancels
+        const inputVal = userInput !== null ? userInput : '';
+        this.addTrace(node.line, `input() -> "${inputVal}"`);
+        return inputVal;
       default:
         return null;
     }

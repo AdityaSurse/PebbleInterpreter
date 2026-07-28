@@ -1,5 +1,15 @@
 export const EXAMPLES = [
   {
+    name: 'Greeting (Input)',
+    code: `// Ask user for their name and greet them
+let name = input("What is your name?");
+print("Hello, " + name + "!");
+
+// You can also ask for numbers (they return as strings)
+let age = input("How old are you?");
+print("You are " + age + " years old.");`
+  },
+  {
     name: 'Fibonacci',
     code: `// Fibonacci sequence up to 100
 let a = 0;
