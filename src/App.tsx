@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { Lexer } from './interpreter/lexer';
 import { Parser } from './interpreter/parser';
 import { Interpreter, TraceStep } from './interpreter/interpreter';
@@ -12,7 +12,7 @@ import OutputPanel from './components/OutputPanel';
 import ExecutionTrace from './components/ExecutionTrace';
 import ExampleDropdown from './components/ExampleDropdown';
 import { EXAMPLES } from './examples';
-import { Play, Share, Settings, BookOpen, Folder, Sun, Moon, TerminalSquare } from 'lucide-react';
+import { Play, Download, Settings, BookOpen, Folder, Sun, Moon, TerminalSquare, Upload } from 'lucide-react';
 
 export default function App() {
   const [code, setCode] = useState(EXAMPLES[0].code);
@@ -21,6 +21,49 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [cheatSheetOpen, setCheatSheetOpen] = useState(false);
+
+  const [isCopied, setIsCopied] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Check for code in URL
+    const params = new URLSearchParams(window.location.search);
+    const encodedCode = params.get('code');
+    if (encodedCode) {
+      try {
+        setCode(atob(encodedCode));
+      } catch (e) {
+        console.error("Failed to decode code from URL");
+      }
+    }
+  }, []);
+
+  const handleDownload = () => {
+    const blob = new Blob([code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'script.pebble';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        setCode(text);
+      };
+      reader.readAsText(file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''; // Reset input
+    }
+  };
 
   useEffect(() => {
     if (isDarkMode) {
@@ -60,9 +103,12 @@ export default function App() {
         <div className="flex items-center gap-4">
           <ExampleDropdown onSelect={setCode} />
           <div className="h-4 w-[1px] bg-stone-300 dark:bg-zinc-700 mx-2"></div>
-          <button className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors">
-            <Share className="w-3.5 h-3.5" />
-            Share
+          <button 
+            onClick={handleDownload}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Download
           </button>
           <button 
             onClick={runCode}
@@ -79,6 +125,20 @@ export default function App() {
         <aside className="flex flex-col items-center py-4 gap-2 bg-stone-50 dark:bg-zinc-950 border-r border-stone-300 dark:border-zinc-800 w-12 shrink-0">
           <button className="w-8 h-8 flex items-center justify-center bg-stone-200 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 transition-colors">
              <Folder className="w-4 h-4" />
+          </button>
+          <input 
+            type="file" 
+            accept=".pebble" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            className="hidden" 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="w-8 h-8 flex items-center justify-center text-stone-500 dark:text-zinc-500 hover:bg-stone-200 dark:hover:bg-zinc-800 transition-colors"
+            title="Import .pebble file"
+          >
+             <Upload className="w-4 h-4" />
           </button>
           <button 
             onClick={() => setCheatSheetOpen(!cheatSheetOpen)}

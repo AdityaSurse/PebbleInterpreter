@@ -135,35 +135,42 @@ export class Parser {
     const line = this.currentToken.line;
     this.nextToken(); // consume 'for'
     
-    if (!this.expectPeek(TokenType.LPAREN)) {
+    if (this.currentToken.type !== TokenType.LPAREN) {
       throw new Error(`Line ${line}: Expected '(' after 'for'`);
     }
     
     this.nextToken(); // consume '('
     
+    // Parse init
     let init: Statement | undefined;
     if ((this.currentToken.type as TokenType) !== TokenType.SEMICOLON) {
-      if (this.currentToken.type === TokenType.LET) {
+      if ((this.currentToken.type as TokenType) === TokenType.LET) {
         init = this.parseLetStatement();
       } else {
         init = this.parseStatement() || undefined;
       }
-    } else {
-      this.nextToken(); // consume ';'
     }
     
+    if ((this.currentToken.type as TokenType) !== TokenType.SEMICOLON) {
+      throw new Error(`Line ${line}: Expected ';' after for init`);
+    }
+    this.nextToken(); // consume ';'
+    
+    // Parse condition
     let condition: Expression | undefined;
     if ((this.currentToken.type as TokenType) !== TokenType.SEMICOLON) {
       condition = this.parseExpression(Precedence.LOWEST);
-      this.nextToken(); // consume condition
-      if ((this.currentToken.type as TokenType) !== TokenType.SEMICOLON) {
-         throw new Error(`Line ${line}: Expected ';' after for condition`);
+      if ((this.peekToken.type as TokenType) === TokenType.SEMICOLON) {
+         this.nextToken();
       }
-      this.nextToken(); // consume ';'
-    } else {
-      this.nextToken(); // consume ';'
     }
     
+    if ((this.currentToken.type as TokenType) !== TokenType.SEMICOLON) {
+      throw new Error(`Line ${line}: Expected ';' after for condition`);
+    }
+    this.nextToken(); // consume ';'
+    
+    // Parse update
     let update: Statement | undefined;
     if ((this.currentToken.type as TokenType) !== TokenType.RPAREN) {
        const updateLine = this.currentToken.line;
@@ -180,12 +187,13 @@ export class Parser {
        } else {
          update = { type: 'ExpressionStatement', expression: updateExpr, line: updateLine };
        }
-       if ((this.peekToken.type as TokenType) === TokenType.SEMICOLON) {
-           this.nextToken();
-       }
     }
     
-    if (!this.expectPeek(TokenType.RPAREN)) {
+    if ((this.peekToken.type as TokenType) === TokenType.RPAREN) {
+       this.nextToken();
+    }
+    
+    if ((this.currentToken.type as TokenType) !== TokenType.RPAREN) {
       throw new Error(`Line ${line}: Expected ')' after 'for' clauses`);
     }
     
