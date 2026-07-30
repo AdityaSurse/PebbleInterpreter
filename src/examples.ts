@@ -30,6 +30,15 @@ let age = input("How old are you?");
 print("You are " + age + " years old.");`
   },
   {
+    name: 'Benchmark (1 Million Loops)',
+    code: `// Loop 1 million times and sum
+let sum = 0;
+for (let i = 0; i < 1000000; i = i + 1) {
+  sum = sum + i;
+}
+print("Sum is " + sum);`
+  },
+  {
     name: 'Fibonacci',
     code: `// Fibonacci sequence up to 100
 let a = 0;

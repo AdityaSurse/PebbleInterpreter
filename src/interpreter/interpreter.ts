@@ -56,7 +56,7 @@ export class Interpreter {
   private trace: TraceStep[] = [];
   private output: string[] = [];
   private stepCount = 0;
-  private MAX_STEPS = 100000;
+  private MAX_STEPS = 10000000;
 
   constructor() {
     this.env = new Environment();
@@ -86,12 +86,21 @@ export class Interpreter {
     if (this.stepCount > this.MAX_STEPS) {
       throw new Error(`Execution limit exceeded - possible infinite loop (max ${this.MAX_STEPS} steps).`);
     }
-    this.trace.push({
-      step: this.stepCount,
-      line,
-      statement: stmtStr,
-      state: this.env.getSnapshot()
-    });
+    if (this.trace.length < 5000) {
+      this.trace.push({
+        step: this.stepCount,
+        line,
+        statement: stmtStr,
+        state: this.env.getSnapshot()
+      });
+    } else if (this.trace.length === 5000) {
+      this.trace.push({
+        step: this.stepCount,
+        line,
+        statement: "...Trace limit reached (performance protection)",
+        state: this.env.getSnapshot()
+      });
+    }
   }
 
   public evaluate(node: ASTNode, env: Environment = this.env): any {

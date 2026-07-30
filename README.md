@@ -1,14 +1,17 @@
-# Pebble Interpreter
+# Pebble VM
 
-A sleek, interactive web-based playground and interpreter for the Pebble programming language. Built entirely in the browser, it features a custom lexer, parser, and interpreter with real-time execution tracing.
+A sleek, interactive web-based playground, interpreter, and bytecode virtual machine for the Pebble programming language. Built entirely in the browser, it features a custom lexer, parser, bytecode compiler, and a stack-based VM with real-time execution tracing and bytecode disassembly.
 
 ## Features
 
-*   **Custom Interpreter:** Built from scratch with a custom lexer, parser (generating an Abstract Syntax Tree), and evaluator.
-*   **Interactive Editor:** Web-based code editor with syntax highlighting, automatic indentation, and line numbering.
-*   **Execution Trace:** Step-by-step visibility into the interpreter's state, variable assignments, and statement execution.
-*   **Live Output Console:** Real-time standard output and error reporting.
-*   **Built-in Examples:** Pre-loaded templates including Fibonacci Sequence, FizzBuzz, and Factorial.
+*   **Dual Execution Modes:**
+    *   **AST Walk:** Evaluates the Abstract Syntax Tree directly.
+    *   **VM Compile:** Compiles the AST into bytecode and executes it on a custom stack-based Virtual Machine.
+*   **Compiler & Bytecode VM:** Features a single-pass compiler that generates instructions for a stack machine, supporting jump offsets, closures, and variable scope resolution.
+*   **Interactive Editor:** Web-based code editor with syntax highlighting, automatic indentation, line numbering, and a cheat sheet.
+*   **Execution Trace & Disassembly:** Step-by-step visibility into the interpreter's AST state, as well as a dedicated panel to view the compiled bytecode instructions.
+*   **File Import/Export:** Seamlessly download your code as `.pebble` files or upload existing `.pebble` scripts to continue editing.
+*   **Live Output Console & Benchmarking:** Real-time standard output, error reporting, and execution time measurement to compare AST vs. VM performance.
 *   **Modern UI:** Clean, responsive interface with a seamless Dark/Light mode toggle, crafted with Tailwind CSS.
 
 ## Tech Stack
@@ -30,8 +33,8 @@ A sleek, interactive web-based playground and interpreter for the Pebble program
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/pebble-interpreter.git
-   cd pebble-interpreter
+   git clone https://github.com/yourusername/pebble-vm.git
+   cd pebble-vm
    ```
 
 2. Install dependencies:
@@ -48,20 +51,17 @@ A sleek, interactive web-based playground and interpreter for the Pebble program
 
 ## Language Syntax
 
-Pebble is a simple, dynamically typed language. It supports basic arithmetic, variables, `while` loops, `if/else` conditionals, and a built-in `print` function.
+Pebble is a simple, dynamically typed language. It supports basic arithmetic, variables, `while` loops, `for` loops, `if/else` conditionals, arrays, objects, functions with closures, and built-in native functions (like `print`, `len`, `abs`, etc.).
 
 ```javascript
 // Fibonacci sequence in Pebble
-let n = 10;
 let a = 0;
 let b = 1;
-let count = 0;
 
-while (count < n) {
-  print(a);
+for (let i = 0; i < 15; i = i + 1) {
+  print("Fib " + i + ": " + a);
   let temp = a + b;
   a = b;
   b = temp;
-  count = count + 1;
 }
 ```

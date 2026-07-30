@@ -7,12 +7,15 @@ import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { Lexer } from './interpreter/lexer';
 import { Parser } from './interpreter/parser';
 import { Interpreter, TraceStep } from './interpreter/interpreter';
+import { Compiler } from './interpreter/compiler';
+import { VM } from './interpreter/vm';
+import { Chunk } from './interpreter/bytecode';
 import CodeEditor from './components/CodeEditor';
 import OutputPanel from './components/OutputPanel';
 import ExecutionTrace from './components/ExecutionTrace';
 import ExampleDropdown from './components/ExampleDropdown';
 import { EXAMPLES } from './examples';
-import { Play, Download, Settings, BookOpen, Folder, Sun, Moon, TerminalSquare, Upload } from 'lucide-react';
+import { Play, Download, Settings, BookOpen, Folder, Sun, Moon, TerminalSquare, Upload, Cpu, FileCode } from 'lucide-react';
 
 export default function App() {
   const [code, setCode] = useState(EXAMPLES[0].code);
@@ -21,6 +24,12 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [cheatSheetOpen, setCheatSheetOpen] = useState(false);
+  
+  type ExecMode = 'ast' | 'vm';
+  const [execMode, setExecMode] = useState<ExecMode>('vm');
+  const [showBytecode, setShowBytecode] = useState(false);
+  const [bytecode, setBytecode] = useState<string[]>([]);
+  const [benchTime, setBenchTime] = useState<number | null>(null);
 
   const [isCopied, setIsCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,17 +85,33 @@ export default function App() {
   const runCode = () => {
     setOutput([]);
     setTrace([]);
+    setBytecode([]);
     setError(null);
+    setBenchTime(null);
     try {
       const lexer = new Lexer(code);
       const parser = new Parser(lexer);
       const program = parser.parseProgram();
       
-      const interpreter = new Interpreter();
-      interpreter.evaluate(program);
+      const startTime = performance.now();
       
-      setOutput(interpreter.getOutput());
-      setTrace(interpreter.getTrace());
+      if (execMode === 'ast') {
+        const interpreter = new Interpreter();
+        interpreter.evaluate(program);
+        setOutput(interpreter.getOutput());
+        setTrace(interpreter.getTrace());
+      } else {
+        const compiler = new Compiler();
+        const mainFunction = compiler.compile(program);
+        setBytecode(mainFunction.chunk.disassemble("main"));
+        
+        const vm = new VM();
+        vm.run(mainFunction);
+        setOutput(vm.getOutput());
+      }
+      
+      const endTime = performance.now();
+      setBenchTime(endTime - startTime);
     } catch (e: any) {
       setError(e.message);
     }
@@ -98,9 +123,40 @@ export default function App() {
       <header className="h-12 bg-white dark:bg-zinc-900 border-b border-stone-300 dark:border-zinc-800 px-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <TerminalSquare className="w-5 h-5 text-emerald-700 dark:text-emerald-500" />
-          <h1 className="text-sm font-bold tracking-tight text-stone-800 dark:text-zinc-100">Pebble<span className="text-emerald-700 dark:text-emerald-500 font-medium">Interpreter</span></h1>
+          <h1 className="text-sm font-bold tracking-tight text-stone-800 dark:text-zinc-100">Pebble<span className="text-emerald-700 dark:text-emerald-500 font-medium">VM</span></h1>
+          
+          <div className="h-4 w-[1px] bg-stone-300 dark:bg-zinc-700 mx-2"></div>
+          <div className="flex items-center bg-stone-200 dark:bg-zinc-800 p-0.5 rounded">
+            <button 
+              onClick={() => setExecMode('ast')}
+              className={`px-3 py-1 text-xs font-semibold rounded-sm transition-colors ${execMode === 'ast' ? 'bg-white dark:bg-zinc-700 text-emerald-700 dark:text-emerald-400 shadow-sm' : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'}`}
+            >
+              AST Walk
+            </button>
+            <button 
+              onClick={() => setExecMode('vm')}
+              className={`px-3 py-1 text-xs font-semibold rounded-sm transition-colors flex items-center gap-1 ${execMode === 'vm' ? 'bg-white dark:bg-zinc-700 text-emerald-700 dark:text-emerald-400 shadow-sm' : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'}`}
+            >
+              <Cpu className="w-3 h-3" />
+              VM Compile
+            </button>
+          </div>
+          
+          {benchTime !== null && (
+             <div className="text-xs font-mono text-stone-500 dark:text-zinc-400 ml-2">
+               {benchTime.toFixed(2)}ms
+             </div>
+          )}
         </div>
         <div className="flex items-center gap-4">
+          <button 
+             onClick={() => setShowBytecode(!showBytecode)}
+             className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-colors ${showBytecode ? 'text-emerald-700 dark:text-emerald-400' : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'}`}
+             title="Toggle Bytecode View"
+          >
+             <FileCode className="w-3.5 h-3.5" />
+             Bytecode
+          </button>
           <ExampleDropdown onSelect={setCode} />
           <div className="h-4 w-[1px] bg-stone-300 dark:bg-zinc-700 mx-2"></div>
           <button 
@@ -210,8 +266,21 @@ export default function App() {
 
           {/* Right Panel: Output & Trace */}
           <section className="w-full md:w-[40%] flex flex-col min-w-0 bg-stone-50 dark:bg-zinc-950">
-            <OutputPanel output={output} error={error} onClear={() => {setOutput([]); setError(null)}} />
-            <ExecutionTrace trace={trace} />
+            {showBytecode ? (
+              <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-zinc-900 border-b md:border-b-0 border-stone-300 dark:border-zinc-800">
+                <div className="px-4 py-1.5 flex justify-between items-center border-b border-stone-300 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 shrink-0">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-stone-600 dark:text-zinc-400">Compiled Bytecode</span>
+                </div>
+                <div className="flex-1 overflow-auto p-4 font-mono text-xs whitespace-pre bg-stone-50 dark:bg-zinc-950 text-stone-800 dark:text-zinc-300">
+                  {bytecode.length > 0 ? bytecode.join('\n') : <span className="text-stone-400">Run the code in VM mode to see bytecode.</span>}
+                </div>
+              </div>
+            ) : (
+              <>
+                <OutputPanel output={output} error={error} onClear={() => {setOutput([]); setError(null)}} />
+                <ExecutionTrace trace={trace} />
+              </>
+            )}
           </section>
         </div>
       </main>
