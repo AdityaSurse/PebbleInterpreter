@@ -60,6 +60,17 @@ export class Interpreter {
 
   constructor() {
     this.env = new Environment();
+    this.env.set('len', (args: any[]) => args[0].length);
+    this.env.set('push', (args: any[]) => { args[0].push(args[1]); return null; });
+    this.env.set('pop', (args: any[]) => args[0].pop());
+    this.env.set('abs', (args: any[]) => Math.abs(args[0]));
+    this.env.set('round', (args: any[]) => Math.round(args[0]));
+    this.env.set('floor', (args: any[]) => Math.floor(args[0]));
+    this.env.set('ceil', (args: any[]) => Math.ceil(args[0]));
+    this.env.set('random', () => Math.random());
+    this.env.set('sqrt', (args: any[]) => Math.sqrt(args[0]));
+    this.env.set('min', (args: any[]) => Math.min(...args));
+    this.env.set('max', (args: any[]) => Math.max(...args));
   }
 
   public getTrace() {
@@ -96,9 +107,45 @@ export class Interpreter {
         return null;
       case 'AssignmentStatement':
         const assignVal = this.evaluate(node.value, env);
-        env.assign(node.name.value, assignVal);
-        this.addTrace(node.line, `${node.name.value} = ${assignVal}`);
+        if (node.name.type === 'IdentifierExpression') {
+          env.assign(node.name.value, assignVal);
+          this.addTrace(node.line, `${node.name.value} = ${typeof assignVal === 'string' ? '"' + assignVal + '"' : assignVal}`);
+        } else if (node.name.type === 'IndexExpression') {
+          const arr = this.evaluate(node.name.left, env);
+          const index = this.evaluate(node.name.index, env);
+          arr[index] = assignVal;
+          this.addTrace(node.line, `array[${index}] = ${typeof assignVal === 'string' ? '"' + assignVal + '"' : assignVal}`);
+        }
         return null;
+      case 'ForStatement':
+        const forEnv = new Environment(env);
+        if (node.init) {
+          this.evaluate(node.init, forEnv);
+        }
+        while (!node.condition || this.evaluate(node.condition, forEnv)) {
+          this.addTrace(node.line, `for (loop iteration)`);
+          this.evaluate(node.body, forEnv);
+          if (node.update) {
+            this.evaluate(node.update, forEnv);
+          }
+        }
+        this.addTrace(node.line, `for (loop end)`);
+        return null;
+      case 'ArrayExpression':
+        return node.elements.map(el => this.evaluate(el, env));
+      case 'IndexExpression':
+        const arrLeft = this.evaluate(node.left, env);
+        const idx = this.evaluate(node.index, env);
+        return arrLeft[idx];
+      case 'CallExpression':
+        const callee = this.evaluate(node.callee, env);
+        const args = node.arguments.map(arg => this.evaluate(arg, env));
+        if (typeof callee === 'function') {
+           const result = callee(args);
+           this.addTrace(node.line, `call(...) -> ${result}`);
+           return result;
+        }
+        throw new Error(`Line ${node.line}: Not a function`);
       case 'ExpressionStatement':
         const expVal = this.evaluate(node.expression, env);
         // Avoid tracing simple expressions unless they have side effects, but for this toy language we might trace them.
@@ -123,8 +170,9 @@ export class Interpreter {
         return null;
       case 'PrintStatement':
         const printVal = this.evaluate(node.expression, env);
-        this.output.push(String(printVal));
-        this.addTrace(node.line, `print(${printVal})`);
+        const formatVal = (val: any) => Array.isArray(val) ? `[${val.map(v => typeof v === 'string' ? '"' + v + '"' : v).join(', ')}]` : String(val);
+        this.output.push(formatVal(printVal));
+        this.addTrace(node.line, `print(${formatVal(printVal)})`);
         return null;
       case 'BinaryExpression':
         const left = this.evaluate(node.left, env);

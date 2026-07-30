@@ -1,5 +1,25 @@
 export const EXAMPLES = [
   {
+    name: 'Arrays & Built-ins',
+    code: `// Working with arrays and math functions
+let nums = [1, 2, 3];
+push(nums, 4);
+print("Array length: " + len(nums));
+
+for (let i = 0; i < len(nums); i = i + 1) {
+  nums[i] = nums[i] * 2;
+}
+print("Doubled array:");
+print(nums);
+
+// Using built-in math functions
+let x = -10.5;
+print("abs(-10.5) is " + abs(x));
+print("round(-10.5) is " + round(x));
+print("max(5, 10, 3) is " + max(5, 10, 3));
+`
+  },
+  {
     name: 'Greeting (Input)',
     code: `// Ask user for their name and greet them
 let name = input("What is your name?");

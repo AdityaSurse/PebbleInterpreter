@@ -80,7 +80,11 @@ export default function App() {
           <button className="w-8 h-8 flex items-center justify-center bg-stone-200 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 transition-colors">
              <Folder className="w-4 h-4" />
           </button>
-          <button className="w-8 h-8 flex items-center justify-center text-stone-500 dark:text-zinc-500 hover:bg-stone-200 dark:hover:bg-zinc-800 transition-colors">
+          <button 
+            onClick={() => setCheatSheetOpen(!cheatSheetOpen)}
+            className="w-8 h-8 flex items-center justify-center text-stone-500 dark:text-zinc-500 hover:bg-stone-200 dark:hover:bg-zinc-800 transition-colors"
+            title="Toggle Cheat Sheet"
+          >
              <BookOpen className="w-4 h-4" />
           </button>
           <div className="mt-auto flex flex-col gap-2">
@@ -118,22 +122,26 @@ export default function App() {
               {cheatSheetOpen && (
                 <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4 bg-white dark:bg-zinc-900 font-mono text-[11px]">
                   <div>
-                    <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Variables</p>
+                    <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Variables & Arrays</p>
                     <code className="block text-stone-500 dark:text-zinc-400">let x = 5;</code>
                     <code className="block text-stone-500 dark:text-zinc-400">let s = "hi";</code>
+                    <code className="block text-stone-500 dark:text-zinc-400">let arr = [1, 2];</code>
                   </div>
                   <div>
                     <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Loops</p>
-                    <code className="block text-stone-500 dark:text-zinc-400">while (x {'<'} 10) {'{'} ... {'}'}</code>
+                    <code className="block text-stone-500 dark:text-zinc-400">while (x {'<'} 10) {'{...}'}</code>
+                    <code className="block text-stone-500 dark:text-zinc-400">for (let i=0; i{'<'}5; i=i+1) {'{...}'}</code>
                   </div>
                   <div>
                     <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Conditionals</p>
-                    <code className="block text-stone-500 dark:text-zinc-400">if (x == 5) {'{'} ... {'}'}</code>
+                    <code className="block text-stone-500 dark:text-zinc-400">if (x == 5) {'{...}'}</code>
                   </div>
                   <div>
-                    <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">I/O</p>
+                    <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Built-ins</p>
                     <code className="block text-stone-500 dark:text-zinc-400">print(x);</code>
                     <code className="block text-stone-500 dark:text-zinc-400">let v = input();</code>
+                    <code className="block text-stone-500 dark:text-zinc-400">len(arr); push(arr, 3);</code>
+                    <code className="block text-stone-500 dark:text-zinc-400">abs(-5); max(1, 2);</code>
                   </div>
                 </div>
               )}

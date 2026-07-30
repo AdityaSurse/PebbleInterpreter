@@ -12,8 +12,12 @@ import {
   BlockStatement,
   IfStatement,
   WhileStatement,
+  ForStatement,
   PrintStatement,
   InputExpression,
+  ArrayExpression,
+  IndexExpression,
+  CallExpression,
 } from './types';
 
 enum Precedence {
@@ -26,6 +30,7 @@ enum Precedence {
   PRODUCT,     // *
   PREFIX,      // -X or !X
   CALL,        // myFunction(X)
+  INDEX,       // array[index]
 }
 
 const PRECEDENCES: Record<TokenType, Precedence> = {
@@ -42,6 +47,8 @@ const PRECEDENCES: Record<TokenType, Precedence> = {
   [TokenType.STAR]: Precedence.PRODUCT,
   [TokenType.SLASH]: Precedence.PRODUCT,
   [TokenType.MODULO]: Precedence.PRODUCT,
+  [TokenType.LPAREN]: Precedence.CALL,
+  [TokenType.LBRACKET]: Precedence.INDEX,
 } as Record<TokenType, Precedence>;
 
 export class Parser {
@@ -90,16 +97,106 @@ export class Parser {
         return this.parseIfStatement();
       case TokenType.WHILE:
         return this.parseWhileStatement();
+      case TokenType.FOR:
+        return this.parseForStatement();
       case TokenType.PRINT:
         return this.parsePrintStatement();
-      case TokenType.IDENTIFIER:
-        if (this.peekToken.type === TokenType.EQUAL) {
-          return this.parseAssignmentStatement();
-        }
-        return this.parseExpressionStatement();
       default:
-        return this.parseExpressionStatement();
+        // Try parsing as expression statement, which could also be an assignment
+        const line = this.currentToken.line;
+        const expr = this.parseExpression(Precedence.LOWEST);
+        
+        if (this.peekToken.type === TokenType.EQUAL) {
+          this.nextToken(); // consume to '='
+          this.nextToken(); // consume '='
+          
+          const value = this.parseExpression(Precedence.LOWEST);
+          
+          if ((this.peekToken.type as TokenType) === TokenType.SEMICOLON) {
+            this.nextToken();
+          }
+          
+          if (expr.type === 'IdentifierExpression' || expr.type === 'IndexExpression') {
+            return { type: 'AssignmentStatement', name: expr, value, line };
+          } else {
+            throw new Error(`Line ${line}: Invalid left-hand side in assignment`);
+          }
+        }
+        
+        if ((this.peekToken.type as TokenType) === TokenType.SEMICOLON) {
+          this.nextToken();
+        }
+        
+        return { type: 'ExpressionStatement', expression: expr, line };
     }
+  }
+
+  private parseForStatement(): ForStatement {
+    const line = this.currentToken.line;
+    this.nextToken(); // consume 'for'
+    
+    if (!this.expectPeek(TokenType.LPAREN)) {
+      throw new Error(`Line ${line}: Expected '(' after 'for'`);
+    }
+    
+    this.nextToken(); // consume '('
+    
+    let init: Statement | undefined;
+    if ((this.currentToken.type as TokenType) !== TokenType.SEMICOLON) {
+      if (this.currentToken.type === TokenType.LET) {
+        init = this.parseLetStatement();
+      } else {
+        init = this.parseStatement() || undefined;
+      }
+    } else {
+      this.nextToken(); // consume ';'
+    }
+    
+    let condition: Expression | undefined;
+    if ((this.currentToken.type as TokenType) !== TokenType.SEMICOLON) {
+      condition = this.parseExpression(Precedence.LOWEST);
+      this.nextToken(); // consume condition
+      if ((this.currentToken.type as TokenType) !== TokenType.SEMICOLON) {
+         throw new Error(`Line ${line}: Expected ';' after for condition`);
+      }
+      this.nextToken(); // consume ';'
+    } else {
+      this.nextToken(); // consume ';'
+    }
+    
+    let update: Statement | undefined;
+    if ((this.currentToken.type as TokenType) !== TokenType.RPAREN) {
+       const updateLine = this.currentToken.line;
+       const updateExpr = this.parseExpression(Precedence.LOWEST);
+       if (this.peekToken.type === TokenType.EQUAL) {
+         this.nextToken();
+         this.nextToken();
+         const updateVal = this.parseExpression(Precedence.LOWEST);
+         if (updateExpr.type === 'IdentifierExpression' || updateExpr.type === 'IndexExpression') {
+           update = { type: 'AssignmentStatement', name: updateExpr, value: updateVal, line: updateLine };
+         } else {
+           throw new Error(`Line ${updateLine}: Invalid LHS in for update`);
+         }
+       } else {
+         update = { type: 'ExpressionStatement', expression: updateExpr, line: updateLine };
+       }
+       if ((this.peekToken.type as TokenType) === TokenType.SEMICOLON) {
+           this.nextToken();
+       }
+    }
+    
+    if (!this.expectPeek(TokenType.RPAREN)) {
+      throw new Error(`Line ${line}: Expected ')' after 'for' clauses`);
+    }
+    
+    this.nextToken(); // consume ')'
+    
+    if ((this.currentToken.type as TokenType) !== TokenType.LBRACE) {
+       throw new Error(`Line ${line}: Expected '{' for for body`);
+    }
+    const body = this.parseBlockStatement();
+    
+    return { type: 'ForStatement', init, condition, update, body, line };
   }
 
   private parseLetStatement(): LetStatement {
@@ -126,26 +223,6 @@ export class Parser {
     }
 
     return { type: 'LetStatement', name, value, line };
-  }
-
-  private parseAssignmentStatement(): AssignmentStatement {
-    const line = this.currentToken.line;
-    const name: IdentifierExpression = {
-      type: 'IdentifierExpression',
-      value: this.currentToken.literal,
-      line: this.currentToken.line,
-    };
-
-    this.nextToken(); // consume identifier
-    this.nextToken(); // consume '='
-
-    const value = this.parseExpression(Precedence.LOWEST);
-
-    if (this.peekToken.type === TokenType.SEMICOLON) {
-      this.nextToken();
-    }
-
-    return { type: 'AssignmentStatement', name, value, line };
   }
 
   private parsePrintStatement(): PrintStatement {
@@ -238,17 +315,6 @@ export class Parser {
     return { type: 'BlockStatement', statements };
   }
 
-  private parseExpressionStatement(): ExpressionStatement {
-    const line = this.currentToken.line;
-    const expression = this.parseExpression(Precedence.LOWEST);
-
-    if (this.peekToken.type === TokenType.SEMICOLON) {
-      this.nextToken();
-    }
-
-    return { type: 'ExpressionStatement', expression, line };
-  }
-
   private parseExpression(precedence: Precedence): Expression {
     let leftExp = this.parsePrefix();
 
@@ -296,9 +362,31 @@ export class Parser {
         return { type: 'UnaryExpression', operator, right, line };
       case TokenType.LPAREN:
         return this.parseGroupedExpression();
+      case TokenType.LBRACKET:
+        return this.parseArrayExpression();
       default:
         throw new Error(`Line ${this.currentToken.line}: Unexpected token '${this.currentToken.literal}'`);
     }
+  }
+
+  private parseArrayExpression(): ArrayExpression {
+    const line = this.currentToken.line;
+    const elements: Expression[] = [];
+    if (this.peekToken.type === TokenType.RBRACKET) {
+      this.nextToken();
+      return { type: 'ArrayExpression', elements, line };
+    }
+    this.nextToken();
+    elements.push(this.parseExpression(Precedence.LOWEST));
+    while (this.peekToken.type === TokenType.COMMA) {
+      this.nextToken();
+      this.nextToken();
+      elements.push(this.parseExpression(Precedence.LOWEST));
+    }
+    if (!this.expectPeek(TokenType.RBRACKET)) {
+       throw new Error(`Line ${line}: Expected ']' after array elements`);
+    }
+    return { type: 'ArrayExpression', elements, line };
   }
 
   private parseGroupedExpression(): Expression {
@@ -311,12 +399,48 @@ export class Parser {
   }
 
   private parseInfix(left: Expression): Expression {
+    if (this.currentToken.type === TokenType.LBRACKET) {
+      return this.parseIndexExpression(left);
+    }
+    if (this.currentToken.type === TokenType.LPAREN) {
+      return this.parseCallExpression(left);
+    }
     const line = this.currentToken.line;
     const operator = this.currentToken.literal;
     const precedence = this.currentPrecedence();
     this.nextToken();
     const right = this.parseExpression(precedence);
     return { type: 'BinaryExpression', operator, left, right, line };
+  }
+
+  private parseIndexExpression(left: Expression): IndexExpression {
+    const line = this.currentToken.line;
+    this.nextToken();
+    const index = this.parseExpression(Precedence.LOWEST);
+    if (!this.expectPeek(TokenType.RBRACKET)) {
+      throw new Error(`Line ${line}: Expected ']' after index`);
+    }
+    return { type: 'IndexExpression', left, index, line };
+  }
+
+  private parseCallExpression(left: Expression): CallExpression {
+    const line = this.currentToken.line;
+    const args: Expression[] = [];
+    if (this.peekToken.type === TokenType.RPAREN) {
+      this.nextToken();
+      return { type: 'CallExpression', callee: left, arguments: args, line };
+    }
+    this.nextToken();
+    args.push(this.parseExpression(Precedence.LOWEST));
+    while (this.peekToken.type === TokenType.COMMA) {
+      this.nextToken();
+      this.nextToken();
+      args.push(this.parseExpression(Precedence.LOWEST));
+    }
+    if (!this.expectPeek(TokenType.RPAREN)) {
+       throw new Error(`Line ${line}: Expected ')' after call arguments`);
+    }
+    return { type: 'CallExpression', callee: left, arguments: args, line };
   }
 
   private expectPeek(type: TokenType): boolean {

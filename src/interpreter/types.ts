@@ -28,10 +28,14 @@ export enum TokenType {
   LBRACE = 'LBRACE',
   RBRACE = 'RBRACE',
   SEMICOLON = 'SEMICOLON',
+  COMMA = 'COMMA',
+  LBRACKET = 'LBRACKET',
+  RBRACKET = 'RBRACKET',
   EOF = 'EOF',
   ILLEGAL = 'ILLEGAL',
   STRING = 'STRING',
   INPUT = 'INPUT',
+  FOR = 'FOR',
 }
 
 export interface Token {
@@ -61,7 +65,7 @@ export interface LetStatement {
 
 export interface AssignmentStatement {
   type: 'AssignmentStatement';
-  name: IdentifierExpression;
+  name: IdentifierExpression | IndexExpression;
   value: Expression;
   line: number;
 }
@@ -87,6 +91,15 @@ export interface WhileStatement {
   line: number;
 }
 
+export interface ForStatement {
+  type: 'ForStatement';
+  init?: Statement;
+  condition?: Expression;
+  update?: Statement;
+  body: BlockStatement;
+  line: number;
+}
+
 export interface PrintStatement {
   type: 'PrintStatement';
   expression: Expression;
@@ -101,6 +114,7 @@ export type Statement =
   | ExpressionStatement
   | IfStatement
   | WhileStatement
+  | ForStatement
   | PrintStatement;
 
 export interface BinaryExpression {
@@ -136,9 +150,32 @@ export interface IdentifierExpression {
   line: number;
 }
 
+export interface ArrayExpression {
+  type: 'ArrayExpression';
+  elements: Expression[];
+  line: number;
+}
+
+export interface IndexExpression {
+  type: 'IndexExpression';
+  left: Expression;
+  index: Expression;
+  line: number;
+}
+
+export interface CallExpression {
+  type: 'CallExpression';
+  callee: Expression;
+  arguments: Expression[];
+  line: number;
+}
+
 export type Expression =
   | BinaryExpression
   | UnaryExpression
   | LiteralExpression
   | IdentifierExpression
-  | InputExpression;
+  | InputExpression
+  | ArrayExpression
+  | IndexExpression
+  | CallExpression;

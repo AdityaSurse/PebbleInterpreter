@@ -9,6 +9,7 @@ const KEYWORDS: Record<string, TokenType> = {
   true: TokenType.TRUE,
   false: TokenType.FALSE,
   input: TokenType.INPUT,
+  for: TokenType.FOR,
 };
 
 export class Lexer {
@@ -133,6 +134,15 @@ export class Lexer {
         break;
       case '}':
         tok = { type: TokenType.RBRACE, literal: this.ch, line: this.line };
+        break;
+      case '[':
+        tok = { type: TokenType.LBRACKET, literal: this.ch, line: this.line };
+        break;
+      case ']':
+        tok = { type: TokenType.RBRACKET, literal: this.ch, line: this.line };
+        break;
+      case ',':
+        tok = { type: TokenType.COMMA, literal: this.ch, line: this.line };
         break;
       case '"':
       case "'":
