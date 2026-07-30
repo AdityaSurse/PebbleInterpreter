@@ -18,6 +18,15 @@ import {
   ArrayExpression,
   IndexExpression,
   CallExpression,
+
+  FunctionStatement,
+  ReturnStatement,
+  ClassStatement,
+  ObjectExpression,
+  NewExpression,
+  PropertyAccessExpression,
+  ThisExpression,
+
 } from './types';
 
 enum Precedence {
@@ -29,7 +38,8 @@ enum Precedence {
   SUM,         // +
   PRODUCT,     // *
   PREFIX,      // -X or !X
-  CALL,        // myFunction(X)
+  CALL,
+  DOT,        // myFunction(X)
   INDEX,       // array[index]
 }
 
@@ -78,7 +88,7 @@ export class Parser {
   public parseProgram(): Program {
     const program: Program = { type: 'Program', statements: [] };
 
-    while (this.currentToken.type !== TokenType.EOF) {
+    while ((this.currentToken.type as TokenType) !== TokenType.EOF) {
       const stmt = this.parseStatement();
       if (stmt) {
         program.statements.push(stmt);
@@ -91,6 +101,14 @@ export class Parser {
 
   private parseStatement(): Statement | null {
     switch (this.currentToken.type) {
+
+      case TokenType.DEF:
+        return this.parseFunctionStatement();
+      case TokenType.RETURN:
+        return this.parseReturnStatement();
+      case TokenType.CLASS:
+        return this.parseClassStatement();
+
       case TokenType.LET:
         return this.parseLetStatement();
       case TokenType.IF:
@@ -106,7 +124,7 @@ export class Parser {
         const line = this.currentToken.line;
         const expr = this.parseExpression(Precedence.LOWEST);
         
-        if (this.peekToken.type === TokenType.EQUAL) {
+        if ((this.peekToken.type as TokenType) === TokenType.EQUAL) {
           this.nextToken(); // consume to '='
           this.nextToken(); // consume '='
           
@@ -135,7 +153,7 @@ export class Parser {
     const line = this.currentToken.line;
     this.nextToken(); // consume 'for'
     
-    if (this.currentToken.type !== TokenType.LPAREN) {
+    if ((this.currentToken.type as TokenType) !== TokenType.LPAREN) {
       throw new Error(`Line ${line}: Expected '(' after 'for'`);
     }
     
@@ -175,7 +193,7 @@ export class Parser {
     if ((this.currentToken.type as TokenType) !== TokenType.RPAREN) {
        const updateLine = this.currentToken.line;
        const updateExpr = this.parseExpression(Precedence.LOWEST);
-       if (this.peekToken.type === TokenType.EQUAL) {
+       if ((this.peekToken.type as TokenType) === TokenType.EQUAL) {
          this.nextToken();
          this.nextToken();
          const updateVal = this.parseExpression(Precedence.LOWEST);
@@ -226,18 +244,127 @@ export class Parser {
     this.nextToken();
     const value = this.parseExpression(Precedence.LOWEST);
 
-    if (this.peekToken.type === TokenType.SEMICOLON) {
+    if ((this.peekToken.type as TokenType) === TokenType.SEMICOLON) {
       this.nextToken();
     }
 
     return { type: 'LetStatement', name, value, line };
   }
 
+  
+  private parseFunctionStatement(): FunctionStatement {
+    const line = this.currentToken.line;
+    this.nextToken(); // consume 'def'
+    if (!this.expectPeek(TokenType.IDENTIFIER)) {
+      throw new Error(`Line ${line}: Expected function name`);
+    }
+    const name: IdentifierExpression = {
+      type: 'IdentifierExpression',
+      value: this.currentToken.literal,
+      line: this.currentToken.line,
+    };
+    if (!this.expectPeek(TokenType.LPAREN)) {
+      throw new Error(`Line ${line}: Expected '(' after function name`);
+    }
+    const parameters: IdentifierExpression[] = [];
+    if ((this.peekToken.type as TokenType) !== TokenType.RPAREN) {
+      this.nextToken();
+      parameters.push({ type: 'IdentifierExpression', value: this.currentToken.literal, line: this.currentToken.line });
+      while ((this.peekToken.type as TokenType) === TokenType.COMMA) {
+        this.nextToken();
+        this.nextToken();
+        parameters.push({ type: 'IdentifierExpression', value: this.currentToken.literal, line: this.currentToken.line });
+      }
+    }
+    if (!this.expectPeek(TokenType.RPAREN)) {
+      throw new Error(`Line ${line}: Expected ')' after parameters`);
+    }
+    if (!this.expectPeek(TokenType.LBRACE)) {
+      throw new Error(`Line ${line}: Expected '{' before function body`);
+    }
+    const body = this.parseBlockStatement();
+    return { type: 'FunctionStatement', name, parameters, body, line };
+  }
+
+  private parseReturnStatement(): ReturnStatement {
+    const line = this.currentToken.line;
+    this.nextToken(); // consume 'return'
+    let returnValue: Expression | undefined;
+    if ((this.currentToken.type as TokenType) !== TokenType.SEMICOLON) {
+      returnValue = this.parseExpression(Precedence.LOWEST);
+    }
+    if ((this.peekToken.type as TokenType) === TokenType.SEMICOLON) {
+      this.nextToken();
+    }
+    return { type: 'ReturnStatement', returnValue, line };
+  }
+
+  private parseClassStatement(): ClassStatement {
+    const line = this.currentToken.line;
+    this.nextToken(); // consume 'class'
+    if (!this.expectPeek(TokenType.IDENTIFIER)) {
+      throw new Error(`Line ${line}: Expected class name`);
+    }
+    const name: IdentifierExpression = {
+      type: 'IdentifierExpression',
+      value: this.currentToken.literal,
+      line: this.currentToken.line,
+    };
+    if (!this.expectPeek(TokenType.LBRACE)) {
+      throw new Error(`Line ${line}: Expected '{' before class body`);
+    }
+    this.nextToken();
+    const methods: FunctionStatement[] = [];
+    while ((this.currentToken.type as TokenType) !== TokenType.RBRACE && (this.currentToken.type as TokenType) !== TokenType.EOF) {
+      if ((this.currentToken.type as TokenType) === TokenType.DEF) {
+        methods.push(this.parseFunctionStatement());
+      } else {
+        throw new Error(`Line ${this.currentToken.line}: Only methods are allowed inside class body`);
+      }
+      this.nextToken();
+    }
+    return { type: 'ClassStatement', name, methods, line };
+  }
+
+  private parseObjectExpression(): ObjectExpression {
+    const line = this.currentToken.line;
+    const properties: { key: string; value: Expression }[] = [];
+    if ((this.peekToken.type as TokenType) === TokenType.RBRACE) {
+      this.nextToken();
+      return { type: 'ObjectExpression', properties, line };
+    }
+    this.nextToken();
+    while ((this.currentToken.type as TokenType) !== TokenType.RBRACE && (this.currentToken.type as TokenType) !== TokenType.EOF) {
+      let key = '';
+      if ((this.currentToken.type as TokenType) === TokenType.IDENTIFIER || (this.currentToken.type as TokenType) === TokenType.STRING) {
+        key = this.currentToken.literal;
+      } else {
+        throw new Error(`Line ${line}: Expected identifier or string for object key`);
+      }
+      if (!this.expectPeek(TokenType.COLON)) {
+        throw new Error(`Line ${line}: Expected ':' after object key`);
+      }
+      this.nextToken();
+      const value = this.parseExpression(Precedence.LOWEST);
+      properties.push({ key, value });
+      if ((this.peekToken.type as TokenType) === TokenType.COMMA) {
+        this.nextToken();
+        this.nextToken();
+      } else if ((this.peekToken.type as TokenType) !== TokenType.RBRACE) {
+        throw new Error(`Line ${line}: Expected ',' or '}' after object property`);
+      }
+    }
+    if ((this.currentToken.type as TokenType) !== TokenType.RBRACE) {
+      throw new Error(`Line ${line}: Expected '}' after object properties`);
+    }
+    return { type: 'ObjectExpression', properties, line };
+  }
+
   private parsePrintStatement(): PrintStatement {
     const line = this.currentToken.line;
     this.nextToken(); // consume 'print'
 
-    if (this.currentToken.type !== TokenType.LPAREN) {
+    if ((this.currentToken.type as TokenType) !== TokenType.LPAREN) {
        throw new Error(`Line ${line}: Expected '(' after 'print'`);
     }
     this.nextToken(); // consume '('
@@ -248,7 +375,7 @@ export class Parser {
       throw new Error(`Line ${line}: Expected ')' after print expression`);
     }
 
-    if (this.peekToken.type === TokenType.SEMICOLON) {
+    if ((this.peekToken.type as TokenType) === TokenType.SEMICOLON) {
       this.nextToken();
     }
 
@@ -259,7 +386,7 @@ export class Parser {
     const line = this.currentToken.line;
     this.nextToken();
 
-    if (this.currentToken.type !== TokenType.LPAREN) {
+    if ((this.currentToken.type as TokenType) !== TokenType.LPAREN) {
       throw new Error(`Line ${line}: Expected '(' after 'if'`);
     }
     this.nextToken();
@@ -276,7 +403,7 @@ export class Parser {
     const consequence = this.parseBlockStatement();
     let alternative: BlockStatement | undefined;
 
-    if (this.peekToken.type === TokenType.ELSE) {
+    if ((this.peekToken.type as TokenType) === TokenType.ELSE) {
       this.nextToken();
       if (!this.expectPeek(TokenType.LBRACE)) {
         throw new Error(`Line ${line}: Expected '{' after 'else'`);
@@ -291,7 +418,7 @@ export class Parser {
     const line = this.currentToken.line;
     this.nextToken();
 
-    if (this.currentToken.type !== TokenType.LPAREN) {
+    if ((this.currentToken.type as TokenType) !== TokenType.LPAREN) {
       throw new Error(`Line ${line}: Expected '(' after 'while'`);
     }
     this.nextToken();
@@ -314,7 +441,7 @@ export class Parser {
     const statements: Statement[] = [];
     this.nextToken();
 
-    while (this.currentToken.type !== TokenType.RBRACE && this.currentToken.type !== TokenType.EOF) {
+    while ((this.currentToken.type as TokenType) !== TokenType.RBRACE && (this.currentToken.type as TokenType) !== TokenType.EOF) {
       const stmt = this.parseStatement();
       if (stmt) statements.push(stmt);
       this.nextToken();
@@ -326,7 +453,7 @@ export class Parser {
   private parseExpression(precedence: Precedence): Expression {
     let leftExp = this.parsePrefix();
 
-    while (this.peekToken.type !== TokenType.SEMICOLON && precedence < this.peekPrecedence()) {
+    while ((this.peekToken.type as TokenType) !== TokenType.SEMICOLON && precedence < this.peekPrecedence()) {
       this.nextToken();
       leftExp = this.parseInfix(leftExp);
     }
@@ -344,11 +471,11 @@ export class Parser {
         return { type: 'LiteralExpression', value: this.currentToken.literal, line: this.currentToken.line };
       case TokenType.TRUE:
       case TokenType.FALSE:
-        return { type: 'LiteralExpression', value: this.currentToken.type === TokenType.TRUE, line: this.currentToken.line };
+        return { type: 'LiteralExpression', value: (this.currentToken.type as TokenType) === TokenType.TRUE, line: this.currentToken.line };
       case TokenType.INPUT:
         const inputLine = this.currentToken.line;
         let prompt: Expression | undefined;
-        if (this.peekToken.type === TokenType.LPAREN) {
+        if ((this.peekToken.type as TokenType) === TokenType.LPAREN) {
           this.nextToken(); // consume 'input'
           this.nextToken(); // consume '('
           if ((this.currentToken.type as TokenType) !== TokenType.RPAREN) {
@@ -368,6 +495,24 @@ export class Parser {
         this.nextToken();
         const right = this.parseExpression(Precedence.PREFIX);
         return { type: 'UnaryExpression', operator, right, line };
+      
+      case TokenType.LBRACE:
+        return this.parseObjectExpression();
+      case TokenType.THIS:
+        return { type: 'ThisExpression', line: this.currentToken.line };
+      case TokenType.NEW:
+        const newLine = this.currentToken.line;
+        this.nextToken();
+        const callee = this.parseExpression(Precedence.CALL);
+        // Assuming the callee will actually parse the call expression if it has parens, wait... 
+        // We will parse 'new ClassName()'. It's easier if we parse callee as a normal CallExpression, 
+        // but 'new' applies to it. So parseExpression handles 'ClassName()'.
+        // Wait, if it parses 'ClassName()', it returns CallExpression. We can wrap it.
+        if (callee.type !== 'CallExpression') {
+           throw new Error(`Line ${newLine}: Expected function call after 'new'`);
+        }
+        return { type: 'NewExpression', callee: (callee as any).callee, arguments: (callee as any).arguments, line: newLine };
+
       case TokenType.LPAREN:
         return this.parseGroupedExpression();
       case TokenType.LBRACKET:
@@ -380,13 +525,13 @@ export class Parser {
   private parseArrayExpression(): ArrayExpression {
     const line = this.currentToken.line;
     const elements: Expression[] = [];
-    if (this.peekToken.type === TokenType.RBRACKET) {
+    if ((this.peekToken.type as TokenType) === TokenType.RBRACKET) {
       this.nextToken();
       return { type: 'ArrayExpression', elements, line };
     }
     this.nextToken();
     elements.push(this.parseExpression(Precedence.LOWEST));
-    while (this.peekToken.type === TokenType.COMMA) {
+    while ((this.peekToken.type as TokenType) === TokenType.COMMA) {
       this.nextToken();
       this.nextToken();
       elements.push(this.parseExpression(Precedence.LOWEST));
@@ -407,10 +552,21 @@ export class Parser {
   }
 
   private parseInfix(left: Expression): Expression {
-    if (this.currentToken.type === TokenType.LBRACKET) {
+    
+    if ((this.currentToken.type as TokenType) === TokenType.DOT) {
+      const line = this.currentToken.line;
+      this.nextToken();
+      if ((this.currentToken.type as TokenType) !== TokenType.IDENTIFIER) {
+        throw new Error(`Line ${line}: Expected property name after '.'`);
+      }
+      const property = { type: 'IdentifierExpression', value: this.currentToken.literal, line: this.currentToken.line };
+      return { type: 'PropertyAccessExpression', left, property: property as any, line };
+    }
+
+    if ((this.currentToken.type as TokenType) === TokenType.LBRACKET) {
       return this.parseIndexExpression(left);
     }
-    if (this.currentToken.type === TokenType.LPAREN) {
+    if ((this.currentToken.type as TokenType) === TokenType.LPAREN) {
       return this.parseCallExpression(left);
     }
     const line = this.currentToken.line;
@@ -434,13 +590,13 @@ export class Parser {
   private parseCallExpression(left: Expression): CallExpression {
     const line = this.currentToken.line;
     const args: Expression[] = [];
-    if (this.peekToken.type === TokenType.RPAREN) {
+    if ((this.peekToken.type as TokenType) === TokenType.RPAREN) {
       this.nextToken();
       return { type: 'CallExpression', callee: left, arguments: args, line };
     }
     this.nextToken();
     args.push(this.parseExpression(Precedence.LOWEST));
-    while (this.peekToken.type === TokenType.COMMA) {
+    while ((this.peekToken.type as TokenType) === TokenType.COMMA) {
       this.nextToken();
       this.nextToken();
       args.push(this.parseExpression(Precedence.LOWEST));
@@ -452,7 +608,7 @@ export class Parser {
   }
 
   private expectPeek(type: TokenType): boolean {
-    if (this.peekToken.type === type) {
+    if ((this.peekToken.type as TokenType) === type) {
       this.nextToken();
       return true;
     }

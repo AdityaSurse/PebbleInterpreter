@@ -36,6 +36,13 @@ export enum TokenType {
   STRING = 'STRING',
   INPUT = 'INPUT',
   FOR = 'FOR',
+  CLASS = 'CLASS',
+  NEW = 'NEW',
+  THIS = 'THIS',
+  DOT = 'DOT',
+  DEF = 'DEF',
+  RETURN = 'RETURN',
+  COLON = 'COLON',
 }
 
 export interface Token {
@@ -106,7 +113,56 @@ export interface PrintStatement {
   line: number;
 }
 
+
+export interface FunctionStatement {
+  type: 'FunctionStatement';
+  name: IdentifierExpression;
+  parameters: IdentifierExpression[];
+  body: BlockStatement;
+  line: number;
+}
+
+export interface ReturnStatement {
+  type: 'ReturnStatement';
+  returnValue?: Expression;
+  line: number;
+}
+
+export interface ClassStatement {
+  type: 'ClassStatement';
+  name: IdentifierExpression;
+  methods: FunctionStatement[];
+  line: number;
+}
+
+export interface NewExpression {
+  type: 'NewExpression';
+  callee: Expression;
+  arguments: Expression[];
+  line: number;
+}
+
+export interface PropertyAccessExpression {
+  type: 'PropertyAccessExpression';
+  left: Expression;
+  property: IdentifierExpression;
+  line: number;
+}
+
+export interface ThisExpression {
+  type: 'ThisExpression';
+  line: number;
+}
+
+export interface ObjectExpression {
+  type: 'ObjectExpression';
+  properties: { key: string; value: Expression }[];
+  line: number;
+}
 export type Statement =
+  | FunctionStatement
+  | ReturnStatement
+  | ClassStatement
   | Program
   | BlockStatement
   | LetStatement
@@ -171,6 +227,10 @@ export interface CallExpression {
 }
 
 export type Expression =
+  | NewExpression
+  | PropertyAccessExpression
+  | ThisExpression
+  | ObjectExpression
   | BinaryExpression
   | UnaryExpression
   | LiteralExpression

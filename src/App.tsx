@@ -23,11 +23,10 @@ export default function App() {
   const [trace, setTrace] = useState<TraceStep[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [cheatSheetOpen, setCheatSheetOpen] = useState(false);
-  
+  type RightTab = 'output' | 'bytecode' | 'cheatsheet';
+  const [rightTab, setRightTab] = useState<RightTab>('output');
   type ExecMode = 'ast' | 'vm';
   const [execMode, setExecMode] = useState<ExecMode>('vm');
-  const [showBytecode, setShowBytecode] = useState(false);
   const [bytecode, setBytecode] = useState<string[]>([]);
   const [benchTime, setBenchTime] = useState<number | null>(null);
 
@@ -149,14 +148,6 @@ export default function App() {
           )}
         </div>
         <div className="flex items-center gap-4">
-          <button 
-             onClick={() => setShowBytecode(!showBytecode)}
-             className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-colors ${showBytecode ? 'text-emerald-700 dark:text-emerald-400' : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'}`}
-             title="Toggle Bytecode View"
-          >
-             <FileCode className="w-3.5 h-3.5" />
-             Bytecode
-          </button>
           <ExampleDropdown onSelect={setCode} />
           <div className="h-4 w-[1px] bg-stone-300 dark:bg-zinc-700 mx-2"></div>
           <button 
@@ -196,13 +187,6 @@ export default function App() {
           >
              <Upload className="w-4 h-4" />
           </button>
-          <button 
-            onClick={() => setCheatSheetOpen(!cheatSheetOpen)}
-            className="w-8 h-8 flex items-center justify-center text-stone-500 dark:text-zinc-500 hover:bg-stone-200 dark:hover:bg-zinc-800 transition-colors"
-            title="Toggle Cheat Sheet"
-          >
-             <BookOpen className="w-4 h-4" />
-          </button>
           <div className="mt-auto flex flex-col gap-2">
             <button className="w-8 h-8 flex items-center justify-center text-stone-500 dark:text-zinc-500 hover:bg-stone-200 dark:hover:bg-zinc-800 transition-colors" onClick={() => setIsDarkMode(!isDarkMode)}>
                {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -225,57 +209,92 @@ export default function App() {
             </div>
             {/* Editor Body */}
             <CodeEditor code={code} onChange={setCode} />
-            
-            {/* Cheat Sheet */}
-            <div className="border-t border-stone-300 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 shrink-0">
-              <div 
-                className="px-4 py-1.5 flex justify-between items-center border-b border-stone-300 dark:border-zinc-800 cursor-pointer hover:bg-stone-100 dark:hover:bg-zinc-900 transition-colors"
-                onClick={() => setCheatSheetOpen(!cheatSheetOpen)}
-              >
-                <span className="text-[10px] font-bold uppercase tracking-widest text-stone-600 dark:text-zinc-400">Cheat Sheet</span>
-                <span className="text-stone-400 text-xs font-mono">{cheatSheetOpen ? '[-]' : '[+]'}</span>
-              </div>
-              {cheatSheetOpen && (
-                <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4 bg-white dark:bg-zinc-900 font-mono text-[11px]">
-                  <div>
-                    <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Variables & Arrays</p>
-                    <code className="block text-stone-500 dark:text-zinc-400">let x = 5;</code>
-                    <code className="block text-stone-500 dark:text-zinc-400">let s = "hi";</code>
-                    <code className="block text-stone-500 dark:text-zinc-400">let arr = [1, 2];</code>
-                  </div>
-                  <div>
-                    <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Loops</p>
-                    <code className="block text-stone-500 dark:text-zinc-400">while (x {'<'} 10) {'{...}'}</code>
-                    <code className="block text-stone-500 dark:text-zinc-400">for (let i=0; i{'<'}5; i=i+1) {'{...}'}</code>
-                  </div>
-                  <div>
-                    <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Conditionals</p>
-                    <code className="block text-stone-500 dark:text-zinc-400">if (x == 5) {'{...}'}</code>
-                  </div>
-                  <div>
-                    <p className="font-bold text-stone-700 dark:text-zinc-300 mb-1">Built-ins</p>
-                    <code className="block text-stone-500 dark:text-zinc-400">print(x);</code>
-                    <code className="block text-stone-500 dark:text-zinc-400">let v = input();</code>
-                    <code className="block text-stone-500 dark:text-zinc-400">len(arr); push(arr, 3);</code>
-                    <code className="block text-stone-500 dark:text-zinc-400">abs(-5); max(1, 2);</code>
-                  </div>
-                </div>
-              )}
-            </div>
           </section>
 
           {/* Right Panel: Output & Trace */}
           <section className="w-full md:w-[40%] flex flex-col min-w-0 bg-stone-50 dark:bg-zinc-950">
-            {showBytecode ? (
+            {/* Tabs for Right Panel */}
+            <div className="flex px-4 pt-2 border-b border-stone-300 dark:border-zinc-800 bg-stone-100 dark:bg-zinc-900 gap-4 shrink-0 overflow-x-auto no-scrollbar">
+               <button 
+                 onClick={() => setRightTab('output')} 
+                 className={`text-[11px] font-bold pb-2 border-b-2 whitespace-nowrap ${rightTab === 'output' ? 'text-emerald-700 dark:text-emerald-500 border-emerald-700 dark:border-emerald-500' : 'text-stone-500 dark:text-zinc-500 border-transparent hover:text-stone-800 dark:hover:text-zinc-300'}`}
+               >
+                 OUTPUT & TRACE
+               </button>
+               <button 
+                 onClick={() => setRightTab('bytecode')} 
+                 className={`text-[11px] font-bold pb-2 border-b-2 flex items-center gap-1 whitespace-nowrap ${rightTab === 'bytecode' ? 'text-emerald-700 dark:text-emerald-500 border-emerald-700 dark:border-emerald-500' : 'text-stone-500 dark:text-zinc-500 border-transparent hover:text-stone-800 dark:hover:text-zinc-300'}`}
+               >
+                 <FileCode className="w-3 h-3" /> BYTECODE
+               </button>
+               <button 
+                 onClick={() => setRightTab('cheatsheet')} 
+                 className={`text-[11px] font-bold pb-2 border-b-2 flex items-center gap-1 whitespace-nowrap ${rightTab === 'cheatsheet' ? 'text-emerald-700 dark:text-emerald-500 border-emerald-700 dark:border-emerald-500' : 'text-stone-500 dark:text-zinc-500 border-transparent hover:text-stone-800 dark:hover:text-zinc-300'}`}
+               >
+                 <BookOpen className="w-3 h-3" /> CHEAT SHEET
+               </button>
+            </div>
+            
+            {rightTab === 'bytecode' && (
               <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-zinc-900 border-b md:border-b-0 border-stone-300 dark:border-zinc-800">
-                <div className="px-4 py-1.5 flex justify-between items-center border-b border-stone-300 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 shrink-0">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-stone-600 dark:text-zinc-400">Compiled Bytecode</span>
-                </div>
                 <div className="flex-1 overflow-auto p-4 font-mono text-xs whitespace-pre bg-stone-50 dark:bg-zinc-950 text-stone-800 dark:text-zinc-300">
                   {bytecode.length > 0 ? bytecode.join('\n') : <span className="text-stone-400">Run the code in VM mode to see bytecode.</span>}
                 </div>
               </div>
-            ) : (
+            )}
+            
+            {rightTab === 'cheatsheet' && (
+              <div className="flex-1 overflow-auto bg-white dark:bg-zinc-900 p-6 font-mono text-xs text-stone-800 dark:text-zinc-300 border-b md:border-b-0 border-stone-300 dark:border-zinc-800">
+                 <h2 className="text-sm font-bold text-emerald-700 dark:text-emerald-500 mb-4">Pebble Language Cheat Sheet</h2>
+                 
+                 <div className="space-y-6">
+                    <div>
+                      <p className="font-bold text-stone-700 dark:text-zinc-100 mb-2 border-b border-stone-200 dark:border-zinc-800 pb-1">Variables & Primitives</p>
+                      <code className="block text-stone-500 dark:text-zinc-400">let x = 5;</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">let name = "pebble";</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">let isAwesome = true;</code>
+                    </div>
+                    
+                    <div>
+                      <p className="font-bold text-stone-700 dark:text-zinc-100 mb-2 border-b border-stone-200 dark:border-zinc-800 pb-1">Arrays & Objects</p>
+                      <code className="block text-stone-500 dark:text-zinc-400">let arr = [1, 2, 3];</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">let obj = {'{'} key: "value" {'}'};</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">arr[0] = 5;</code>
+                    </div>
+                    
+                    <div>
+                      <p className="font-bold text-stone-700 dark:text-zinc-100 mb-2 border-b border-stone-200 dark:border-zinc-800 pb-1">Control Flow</p>
+                      <code className="block text-stone-500 dark:text-zinc-400">if (x {'>'} 0) {'{'} ... {'}'} else {'{'} ... {'}'}</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">while (x {'<'} 10) {'{'} x = x + 1; {'}'}</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">for (let i = 0; i {'<'} 5; i = i + 1) {'{'} ... {'}'}</code>
+                    </div>
+                    
+                    <div>
+                      <p className="font-bold text-stone-700 dark:text-zinc-100 mb-2 border-b border-stone-200 dark:border-zinc-800 pb-1">Functions</p>
+                      <code className="block text-stone-500 dark:text-zinc-400">def add(a, b) {'{'}</code>
+                      <code className="block text-stone-500 dark:text-zinc-400 ml-4">return a + b;</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">{'}'}</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">print(add(1, 2));</code>
+                    </div>
+                    
+                    <div>
+                      <p className="font-bold text-stone-700 dark:text-zinc-100 mb-2 border-b border-stone-200 dark:border-zinc-800 pb-1">Classes & Objects (OOP)</p>
+                      <code className="block text-stone-500 dark:text-zinc-400">class Person {'{'}</code>
+                      <code className="block text-stone-500 dark:text-zinc-400 ml-4">def init(name) {'{'}</code>
+                      <code className="block text-stone-500 dark:text-zinc-400 ml-8">this.name = name;</code>
+                      <code className="block text-stone-500 dark:text-zinc-400 ml-4">{'}'}</code>
+                      <code className="block text-stone-500 dark:text-zinc-400 ml-4">def greet() {'{'}</code>
+                      <code className="block text-stone-500 dark:text-zinc-400 ml-8">print("Hi, " + this.name);</code>
+                      <code className="block text-stone-500 dark:text-zinc-400 ml-4">{'}'}</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">{'}'}</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">let p = new Person("Pebble");</code>
+                      <code className="block text-stone-500 dark:text-zinc-400">p.greet();</code>
+                    </div>
+                 </div>
+              </div>
+            )}
+            
+            {rightTab === 'output' && (
               <>
                 <OutputPanel output={output} error={error} onClear={() => {setOutput([]); setError(null)}} />
                 <ExecutionTrace trace={trace} />

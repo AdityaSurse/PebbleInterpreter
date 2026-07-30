@@ -10,6 +10,11 @@ const KEYWORDS: Record<string, TokenType> = {
   false: TokenType.FALSE,
   input: TokenType.INPUT,
   for: TokenType.FOR,
+  class: TokenType.CLASS,
+  new: TokenType.NEW,
+  this: TokenType.THIS,
+  def: TokenType.DEF,
+  return: TokenType.RETURN,
 };
 
 export class Lexer {
@@ -140,6 +145,13 @@ export class Lexer {
         break;
       case ']':
         tok = { type: TokenType.RBRACKET, literal: this.ch, line: this.line };
+        break;
+      
+      case '.':
+        tok = { type: TokenType.DOT, literal: this.ch, line: this.line };
+        break;
+      case ':':
+        tok = { type: TokenType.COLON, literal: this.ch, line: this.line };
         break;
       case ',':
         tok = { type: TokenType.COMMA, literal: this.ch, line: this.line };
